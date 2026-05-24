@@ -1,0 +1,1097 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>灰境記録 - 3日間プロトタイプ</title>
+  <style>
+    :root {
+      --paper: #f3efe4;
+      --paper-deep: #ded3bd;
+      --ink: #22201c;
+      --muted: #6d665b;
+      --line: #b9ad98;
+      --iron: #3d4748;
+      --rust: #8f3f32;
+      --moss: #526449;
+      --blue: #405f73;
+      --gold: #a67b28;
+      --white: #fffaf0;
+      --shadow: rgba(28, 25, 21, .14);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(rgba(40, 47, 48, .1), rgba(40, 47, 48, .1)),
+        var(--paper);
+      color: var(--ink);
+      font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, system-ui, sans-serif;
+      line-height: 1.65;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(230px, 300px) minmax(360px, 1fr) minmax(250px, 340px);
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      padding: 6px 4px 12px;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      font-size: clamp(1.35rem, 2.8vw, 2.15rem);
+      color: var(--iron);
+    }
+
+    h2 {
+      font-size: 1.05rem;
+      color: var(--iron);
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 6px;
+      margin-bottom: 10px;
+    }
+
+    h3 {
+      font-size: .98rem;
+      color: var(--iron);
+      margin-top: 14px;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: .92rem;
+    }
+
+    .panel {
+      background: rgba(255, 250, 240, .72);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 10px 24px var(--shadow);
+      padding: 14px;
+      min-width: 0;
+    }
+
+    .left,
+    .right {
+      overflow: auto;
+      max-height: calc(100vh - 92px);
+    }
+
+    .main {
+      min-width: 0;
+    }
+
+    .record {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      min-height: 300px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.35);
+    }
+
+    .record-title {
+      color: var(--rust);
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .record p {
+      margin: 0 0 12px;
+    }
+
+    .choices {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .choice,
+    .primary,
+    .ghost,
+    .card,
+    .slot,
+    .chip {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--white);
+      color: var(--ink);
+      cursor: pointer;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+    }
+
+    .choice {
+      text-align: left;
+      padding: 12px;
+    }
+
+    .choice:hover,
+    .primary:hover,
+    .ghost:hover,
+    .card:hover,
+    .slot:hover,
+    .chip:hover {
+      transform: translateY(-1px);
+      border-color: var(--iron);
+    }
+
+    .choice small {
+      display: block;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .primary {
+      background: var(--iron);
+      color: var(--white);
+      padding: 10px 12px;
+      font-weight: 700;
+    }
+
+    .ghost {
+      padding: 9px 11px;
+      background: rgba(255,250,240,.6);
+    }
+
+    .danger {
+      color: var(--rust);
+      font-weight: 700;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .stat-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .stat {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      border-bottom: 1px dotted var(--line);
+      padding-bottom: 4px;
+      font-size: .92rem;
+    }
+
+    .stat strong {
+      color: var(--iron);
+    }
+
+    .meter {
+      height: 8px;
+      background: var(--paper-deep);
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+
+    .meter span {
+      display: block;
+      height: 100%;
+      background: var(--moss);
+      width: 50%;
+    }
+
+    .meter.bad span {
+      background: var(--rust);
+    }
+
+    .card-row {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(42px, 1fr));
+      gap: 8px;
+    }
+
+    .card {
+      min-height: 44px;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 1.05rem;
+      color: var(--iron);
+    }
+
+    .card.selected {
+      background: var(--gold);
+      color: var(--white);
+      border-color: #6d4c17;
+    }
+
+    .card.used {
+      opacity: .38;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .slot-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .slot {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 10px;
+      text-align: left;
+    }
+
+    .slot b {
+      color: var(--iron);
+    }
+
+    .slot .rank {
+      min-width: 2.5em;
+      text-align: center;
+      font-weight: 800;
+      color: var(--rust);
+    }
+
+    .field {
+      display: grid;
+      gap: 5px;
+    }
+
+    label {
+      font-weight: 700;
+      color: var(--iron);
+      font-size: .9rem;
+    }
+
+    input,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--white);
+      color: var(--ink);
+      padding: 10px;
+    }
+
+    .list {
+      display: grid;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .list li {
+      border-bottom: 1px dotted var(--line);
+      padding-bottom: 5px;
+      font-size: .9rem;
+    }
+
+    .log {
+      max-height: 220px;
+      overflow: auto;
+      display: grid;
+      gap: 8px;
+    }
+
+    .log-entry {
+      border-left: 3px solid var(--blue);
+      padding-left: 8px;
+      font-size: .88rem;
+      color: var(--muted);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    footer {
+      grid-column: 1 / -1;
+      color: var(--muted);
+      font-size: .84rem;
+      padding: 4px;
+      border-top: 1px solid var(--line);
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .left,
+      .right {
+        max-height: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>灰境記録</h1>
+        <div class="subtitle">3日間プロトタイプ / 記録調テキストRPG</div>
+      </div>
+      <div class="row">
+        <button class="ghost" id="continueBtn">記録から再開</button>
+        <button class="ghost" id="newBtn">新しく始める</button>
+      </div>
+    </header>
+
+    <aside class="panel left">
+      <h2>人物</h2>
+      <div id="characterPanel" class="stack"></div>
+      <h2>状態</h2>
+      <div id="statsPanel" class="stat-grid"></div>
+    </aside>
+
+    <main class="panel main">
+      <section id="creation" class="stack">
+        <h2>キャラメイク</h2>
+        <div class="row">
+          <div class="field" style="flex: 1 1 220px;">
+            <label for="nameInput">名前</label>
+            <input id="nameInput" maxlength="24" placeholder="名もなき現地人">
+          </div>
+          <div class="field" style="flex: 0 1 180px;">
+            <label for="genderInput">性別</label>
+            <select id="genderInput">
+              <option>男性</option>
+              <option>女性</option>
+              <option selected>不詳</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <h3>カード</h3>
+          <div class="card-row" id="cardRow"></div>
+        </div>
+
+        <div>
+          <h3>割り振り</h3>
+          <div class="slot-grid" id="slotGrid"></div>
+        </div>
+
+        <div class="row">
+          <button class="primary" id="generateBtn">この人物で始める</button>
+          <button class="ghost" id="resetCardsBtn">割り振りを戻す</button>
+        </div>
+      </section>
+
+      <section id="game" class="hidden">
+        <div class="record">
+          <div class="record-title" id="sceneTitle"></div>
+          <div id="sceneText"></div>
+        </div>
+        <div class="choices" id="choices"></div>
+      </section>
+    </main>
+
+    <aside class="panel right">
+      <h2>関係</h2>
+      <ul class="list" id="npcPanel"></ul>
+      <h2>記録</h2>
+      <ul class="list" id="recordPanel"></ul>
+      <h2>判定ログ</h2>
+      <div class="log" id="logPanel"></div>
+    </aside>
+
+    <footer>
+      1日終了時に自動保存。選択肢直前の手動保存はありません。
+    </footer>
+  </div>
+
+  <script>
+    const SAVE_KEY = "overlocal_save";
+    const META_KEY = "overlocal_meta";
+
+    const ranks = ["S", "A", "B", "C", "D", "E"];
+    const rankMod = { S: 4, A: 3, B: 2, C: 0, D: -1, E: -2 };
+    const slots = [
+      { key: "limit", label: "レベル上限" },
+      { key: "origin", label: "出身" },
+      { key: "ability", label: "能力値" },
+      { key: "item", label: "特殊アイテム" },
+      { key: "talent", label: "天賦" },
+      { key: "connection", label: "コネクション" }
+    ];
+
+    const slotData = {
+      limit: {
+        S: "英雄器 / 上限35",
+        A: "逸材 / 上限25",
+        B: "才人 / 上限18",
+        C: "有望 / 上限12",
+        D: "平凡 / 上限8",
+        E: "低器量 / 上限5"
+      },
+      origin: {
+        S: "貴族血統の行政教育",
+        A: "神殿教育を受けた薬師見習い",
+        B: "森の狩人",
+        C: "灰麦村の農民",
+        D: "身元の弱い流民",
+        E: "追放された避難民"
+      },
+      ability: {
+        S: "天才 / 判定補正大",
+        A: "秀才 / 成長と判定に補正",
+        B: "才人 / 一部能力が伸びやすい",
+        C: "平凡",
+        D: "鈍才 / 小さな不利",
+        E: "不器用 / 別の強みが必要"
+      },
+      item: {
+        S: "記憶水晶の欠片と保存食7日分",
+        A: "薬箱、通行証、保存食5日分",
+        B: "短剣、道具一式、保存食3日分",
+        C: "保存食1日分、粗末な道具",
+        D: "半日分の食料、壊れた道具",
+        E: "食料なし、古い短刀だけ"
+      },
+      talent: {
+        S: "魔喰いの拒絶",
+        A: "異位階放射",
+        B: "魔力残響視",
+        C: "危機嗅覚",
+        D: "鉄胃",
+        E: "天賦なし"
+      },
+      connection: {
+        S: "若い貴族の庇護",
+        A: "灰麦村で強い信用",
+        B: "ロアンとの友人関係",
+        C: "顔見知りが少し",
+        D: "孤立気味",
+        E: "ガロへの借り"
+      }
+    };
+
+    const initialNpc = {
+      "ミラ": { relation: 0, note: "村の噂と食料葛藤" },
+      "ロアン": { relation: 0, note: "守備隊と検問" },
+      "セヴァン": { relation: 0, note: "神殿と異常記録" },
+      "ガロ": { relation: 0, note: "裏市と食料取引" },
+      "シィル": { relation: 0, note: "森と魔物情報" }
+    };
+
+    let selectedCard = null;
+    let assignments = {};
+    let state = null;
+
+    const $ = (id) => document.getElementById(id);
+
+    function renderCards() {
+      const row = $("cardRow");
+      row.innerHTML = "";
+      ranks.forEach(rank => {
+        const btn = document.createElement("button");
+        btn.className = "card";
+        btn.textContent = rank;
+        const used = Object.values(assignments).includes(rank);
+        if (used) btn.classList.add("used");
+        if (selectedCard === rank) btn.classList.add("selected");
+        btn.disabled = used;
+        btn.onclick = () => {
+          selectedCard = selectedCard === rank ? null : rank;
+          renderCreation();
+        };
+        row.appendChild(btn);
+      });
+    }
+
+    function renderSlots() {
+      const grid = $("slotGrid");
+      grid.innerHTML = "";
+      slots.forEach(slot => {
+        const btn = document.createElement("button");
+        btn.className = "slot";
+        const rank = assignments[slot.key];
+        btn.innerHTML = `<span><b>${slot.label}</b><br><small>${rank ? slotData[slot.key][rank] : "未設定"}</small></span><span class="rank">${rank || "-"}</span>`;
+        btn.onclick = () => {
+          if (rank && !selectedCard) {
+            delete assignments[slot.key];
+          } else if (selectedCard) {
+            if (rank) delete assignments[slot.key];
+            assignments[slot.key] = selectedCard;
+            selectedCard = null;
+          }
+          renderCreation();
+        };
+        grid.appendChild(btn);
+      });
+    }
+
+    function renderCreation() {
+      renderCards();
+      renderSlots();
+      $("generateBtn").disabled = Object.keys(assignments).length !== slots.length;
+    }
+
+    function valueFromItem(rank) {
+      return { S: 7, A: 5, B: 3, C: 1, D: 0.5, E: 0 }[rank];
+    }
+
+    function createState() {
+      const name = $("nameInput").value.trim() || "名もなき現地人";
+      const gender = $("genderInput").value;
+      const itemRank = assignments.item;
+      const connectionRank = assignments.connection;
+      const talentRank = assignments.talent;
+      const originRank = assignments.origin;
+
+      const npcs = JSON.parse(JSON.stringify(initialNpc));
+      if (connectionRank === "A") npcs["ミラ"].relation = 2;
+      if (connectionRank === "B") npcs["ロアン"].relation = 2;
+      if (connectionRank === "S") npcs["セヴァン"].relation = 1;
+      if (connectionRank === "E") npcs["ガロ"].relation = -1;
+
+      return {
+        phase: "game",
+        name,
+        gender,
+        day: 1,
+        time: "朝",
+        location: locationFromOrigin(originRank),
+        assignments: { ...assignments },
+        details: Object.fromEntries(slots.map(s => [s.key, slotData[s.key][assignments[s.key]]])),
+        stats: {
+          hp: 5,
+          mind: 5,
+          food: valueFromItem(itemRank),
+          supplies: itemRank === "S" || itemRank === "A" ? 3 : itemRank === "B" ? 2 : itemRank === "C" ? 1 : 0,
+          trust: connectionRank === "S" ? 3 : connectionRank === "A" ? 2 : connectionRank === "B" ? 1 : 0,
+          suspicion: ["S", "A"].includes(talentRank) ? 1 : connectionRank === "E" ? 2 : 0,
+          beast: 0,
+          hunger: 1,
+          recognition: talentRank === "S" ? 1 : 0
+        },
+        npcs,
+        records: ["灰境地方での記録を開始した。"],
+        flags: {},
+        log: []
+      };
+    }
+
+    function locationFromOrigin(rank) {
+      if (rank === "S") return "ヴェルツ行政庁";
+      if (rank === "A") return "白燭神殿";
+      if (rank === "B") return "黒森の外れ";
+      if (rank === "E") return "北門の外";
+      return "灰麦村";
+    }
+
+    function startGame() {
+      state = createState();
+      $("creation").classList.add("hidden");
+      $("game").classList.remove("hidden");
+      renderGame();
+    }
+
+    function getScene() {
+      const key = `${state.day}-${state.time}`;
+      if (state.ended) return endScene();
+      if (key === "1-朝") return day1Morning();
+      if (key === "1-昼") return day1Noon();
+      if (key === "1-夕") return day1Evening();
+      if (key === "1-夜") return day1Night();
+      if (key === "2-朝") return day2Morning();
+      if (key === "2-昼") return day2Noon();
+      if (key === "2-夜") return day2Night();
+      if (key === "3-朝") return day3Morning();
+      if (key === "3-昼") return day3Final();
+      return endScene();
+    }
+
+    function scene(title, text, choices) {
+      return { title, text, choices };
+    }
+
+    function day1Morning() {
+      const origin = state.assignments.origin;
+      let text = [
+        `${state.location}の朝は薄く冷えていた。`,
+        `あなたの名は${state.name}。性別の記録は「${state.gender}」。`,
+        `食料の残りは${formatFood(state.stats.food)}。今日の行動を誤れば、明日の朝は軽くない。`
+      ];
+      if (origin === "B") text.push("黒森の端で、灰狼の足跡が村の方角へ伸びていた。");
+      else if (origin === "A") text.push("白燭神殿の奥で、遺体の影が壁に焼き付いていると囁かれていた。");
+      else if (origin === "S") text.push("行政庁の机には、数字の合わない配給台帳が置かれていた。");
+      else text.push("村長は都市ヴェルツへの食料供出を命じた。ミラは井戸のそばから、あなたを見ていた。");
+      return scene("1日目 朝", text, [
+        choice("朝の記録を終える", "昼へ進む", () => advance("昼"))
+      ]);
+    }
+
+    function day1Noon() {
+      return scene("1日目 昼", [
+        "昼の時間が来た。",
+        "腹を満たす手段は一つではない。だが、どの道にも小さな傷がある。"
+      ], [
+        rollChoice("労働する", "食料+1。体力を使う。", 6, "ability", () => {
+          state.stats.food += 1; state.stats.hp -= 1; state.stats.trust += 1;
+          record("労働で食料を得た。信用が少し増した。");
+        }),
+        rollChoice("採集する", "食料か薬草を探す。", 9, "ability", () => {
+          state.stats.food += 1; state.stats.beast += 1;
+          record("森の縁で食べられる根と薬草を見つけた。魔物圧が上がった。");
+        }, () => {
+          state.stats.hp -= 1; state.stats.beast += 1;
+          record("採集は失敗した。獣の気配だけが残った。");
+        }),
+        rollChoice("町を調べる", "噂か不正情報を得る。", 9, "ability", () => {
+          state.records.push("配給台帳か倉庫に不自然な空白がある。");
+          state.stats.suspicion += 1;
+          record("食料不正の噂を得た。疑念も少し増した。");
+        }),
+        rollChoice("盗む", "食料+2。失敗時は危険。", 12, "ability", () => {
+          state.stats.food += 2; state.stats.suspicion += 1;
+          record("誰かの蓄えから食料を得た。疑念が残った。");
+        }, () => {
+          state.stats.suspicion += 2; state.stats.mind -= 1;
+          record("盗みは見咎められた。疑念が強まった。");
+        }),
+        choice("休む", "体力と精神を整える。食料圧は進む。", () => {
+          state.stats.hp = Math.min(5, state.stats.hp + 1);
+          state.stats.mind = Math.min(5, state.stats.mind + 1);
+          state.stats.hunger += 1;
+          record("休息した。世界の圧力は待たなかった。");
+          advance("夕");
+        })
+      ]);
+    }
+
+    function day1Evening() {
+      const events = [
+        ["ミラ", "ミラは家族のために食料を分けてほしいと頼んだ。"],
+        ["ロアン", "ロアンは北門で見た異常な荷馬車について話した。"],
+        ["セヴァン", "セヴァンは神殿の影について相談を持ちかけた。"],
+        ["ガロ", "ガロは食料袋と引き換えに、小さな運搬を頼んだ。"],
+        ["シィル", "シィルは森へ入るなと短く警告した。"]
+      ];
+      const picked = events[(state.stats.trust + state.stats.suspicion + state.stats.beast) % events.length];
+      const name = picked[0];
+      return scene("1日目 夕", [
+        picked[1],
+        "食料を守ることと、誰かを信じることは、同じ重さではなかった。"
+      ], [
+        choice(`${name}を助ける`, "関係が上がる。食料か物資を使う。", () => {
+          state.npcs[name].relation += 1;
+          if (state.stats.food > 0) state.stats.food -= 0.5;
+          else state.stats.supplies = Math.max(0, state.stats.supplies - 1);
+          record(`${name}への関係が深まった。`);
+          advance("夜");
+        }),
+        choice("断る", "食料は守る。関係は冷える。", () => {
+          state.npcs[name].relation -= 1;
+          record(`${name}との距離が少し開いた。`);
+          advance("夜");
+        }),
+        choice("条件を出す", "利害でつなぐ。", () => {
+          state.npcs[name].relation += 0;
+          state.stats.trust += 1;
+          state.records.push(`${name}との取引条件`);
+          record(`${name}とは好意ではなく条件でつながった。`);
+          advance("夜");
+        })
+      ]);
+    }
+
+    function day1Night() {
+      return scene("1日目 夜", [
+        "夜が降りた。",
+        "安全に眠る者もいれば、食料と噂を求めて暗がりへ出る者もいる。"
+      ], [
+        choice("休む", "1日を終えて保存する。", () => endDay()),
+        rollChoice("夜の偵察", "魔物情報か異常痕跡を得る。", 12, "ability", () => {
+          state.records.push("灰狼の足跡は、森から逃げるように村へ向かっていた。");
+          state.stats.beast += 1;
+          record("灰狼の足跡を記録した。");
+          endDay();
+        }, () => {
+          state.stats.hp -= 1; state.stats.mind -= 1;
+          record("夜の偵察で傷を負った。");
+          endDay();
+        }),
+        rollChoice("倉庫に忍び込む", "食料か不正証拠を得る。", 15, "ability", () => {
+          state.stats.food += 2;
+          state.records.push("倉庫の横流しの痕跡");
+          record("倉庫から食料と不正の痕跡を得た。");
+          endDay();
+        }, () => {
+          state.stats.suspicion += 2;
+          record("倉庫で物音を立てた。疑念が強まった。");
+          endDay();
+        })
+      ]);
+    }
+
+    function day2Morning() {
+      consumeFood();
+      const text = ["2日目の朝。", "昨日の選択は、どこかで別の誰かの選択を変えていた。"];
+      if (state.stats.food <= 0) text.push("腹は空のままだ。体力か精神が削れている。");
+      if (state.stats.suspicion >= 2) text.push("守備隊の視線が、昨日より長くあなたに留まる。");
+      if (state.stats.beast >= 1) text.push("灰狼の遠吠えが、村に近い場所で聞こえた。");
+      return scene("2日目 朝", text, [
+        choice("昼の対立へ向かう", "配給、検問、畑荒らしのいずれかが起きる。", () => advance("昼"))
+      ]);
+    }
+
+    function day2Noon() {
+      const event = state.stats.suspicion >= 2 ? "検問強化" : state.stats.beast >= 2 ? "畑荒らし" : "配給争い";
+      const text = {
+        "検問強化": ["北門で検問が強化された。通る者は名と荷を記録される。"],
+        "畑荒らし": ["灰麦村の畑が荒らされていた。足跡は人にも魔物にも見える。"],
+        "配給争い": ["配給所で難民と住民が押し合っていた。袋の中身は少ない。"]
+      }[event];
+      return scene(`2日目 昼 ${event}`, text, [
+        rollChoice("仲裁する", "信頼を得る可能性。", 12, "ability", () => {
+          state.stats.trust += 1; state.stats.mind -= 1;
+          record(`${event}を一時的に鎮めた。`);
+          advance("夜");
+        }),
+        rollChoice("証拠を探す", "情報を得る。", 12, "ability", () => {
+          state.records.push(`${event}の記録`);
+          state.stats.suspicion += 1;
+          record(`${event}について記録を得た。`);
+          advance("夜");
+        }),
+        choice("関わらず食料を探す", "食料+1。信頼は得ない。", () => {
+          state.stats.food += 1;
+          state.stats.hunger += 1;
+          record("対立から離れ、食料だけを探した。");
+          advance("夜");
+        })
+      ]);
+    }
+
+    function day2Night() {
+      const monster = state.stats.beast >= 2 ? "灰狼" : state.stats.suspicion >= 2 ? "小鬼の斥候" : "墓灯り";
+      return scene(`2日目 夜 ${monster}`, [
+        `${monster}の気配が、夜の端に現れた。`,
+        "倒すことだけが成功ではない。逃げることも、記録することも、生き残るための手段だった。"
+      ], [
+        rollChoice("対処する", "魔物を退けるか情報を得る。", 15, "ability", () => {
+          state.records.push(`${monster}への対処記録`);
+          state.stats.beast = Math.max(0, state.stats.beast - 1);
+          record(`${monster}への対処に成功した。`);
+          endDay();
+        }, () => {
+          state.stats.hp -= 2; state.stats.mind -= 1;
+          record(`${monster}への対処に失敗した。傷と恐怖が残った。`);
+          endDay();
+        }),
+        choice("隠れてやり過ごす", "被害は抑えるが魔物圧は残る。", () => {
+          state.stats.mind -= 1;
+          state.records.push(`${monster}を目撃した`);
+          record(`${monster}をやり過ごした。`);
+          endDay();
+        })
+      ]);
+    }
+
+    function day3Morning() {
+      consumeFood();
+      const text = ["3日目の朝。", "灰境地方は、まだ壊れてはいない。だが、昨日までと同じ形でもない。"];
+      if (state.stats.trust >= 2) text.push("誰かがあなたを助ける準備をしている。");
+      if (state.stats.suspicion >= 3) text.push("あなたの名は、すでにいくつかの帳面に残っている。");
+      if (state.stats.recognition >= 1) text.push("夢の中で、黒い封蝋の文様が見えた。");
+      return scene("3日目 朝", text, [
+        choice("次の道を選ぶ", "3日間の結末へ進む。", () => advance("昼"))
+      ]);
+    }
+
+    function day3Final() {
+      return scene("3日目 昼 最終選択", [
+        "三日を越えるには、どこかに身を置く必要があった。",
+        "都市、村、神殿、裏市、森。どの道も安全ではない。"
+      ], [
+        endingChoice("都市に残る", state.stats.trust + state.stats.food >= 2, "都市残留"),
+        endingChoice("村へ帰る", state.npcs["ミラ"].relation >= 1 || state.assignments.origin === "C", "村へ帰還"),
+        endingChoice("神殿に保護を求める", state.npcs["セヴァン"].relation >= 1 && state.stats.suspicion < 4, "神殿保護"),
+        endingChoice("裏市に潜る", state.npcs["ガロ"].relation >= 0 || state.assignments.connection === "E", "裏社会ルート"),
+        endingChoice("森へ逃げる", state.npcs["シィル"].relation >= 0 && state.stats.beast <= 3, "森逃亡"),
+        endingChoice("異常を追う", state.records.some(r => r.includes("無音") || r.includes("異常") || r.includes("灰狼")) || state.assignments.talent === "S", "異常接触")
+      ]);
+    }
+
+    function endingChoice(label, ok, ending) {
+      return choice(label, ok ? ending : "条件不足なら危険な失敗になる。", () => {
+        if (ok) {
+          state.ended = ending;
+        } else {
+          state.ended = "逃亡者";
+          state.stats.hp -= 1;
+        }
+        renderGame();
+      });
+    }
+
+    function endScene() {
+      const ending = state.ended || "三日生存";
+      const text = [
+        `結末: ${ending}`,
+        "三日間は終わった。",
+        "世界は救われていない。黒いものの正体も分からない。",
+        "それでも、あなたは何かを残した。"
+      ];
+      if (state.stats.hp <= 0) text.unshift("あなたの記録は、途中で途切れていた。");
+      return scene("結末記録", text, [
+        choice("周回記録を保存して新しく始める", "現在の記録を周回情報へ残す。", () => {
+          saveMeta();
+          clearSave();
+          location.reload();
+        })
+      ]);
+    }
+
+    function choice(label, hint, action) {
+      return { label, hint, action };
+    }
+
+    function rollChoice(label, hint, dc, statKey, success, fail) {
+      return choice(label, `${hint} / 難易度${dc}`, () => {
+        const result = roll(dc);
+        if (result.level === "大成功" || result.level === "成功" || result.level === "代償つき成功") {
+          success(result);
+          if (result.level === "代償つき成功") {
+            state.stats.mind -= 1;
+            record("代償として精神が1減った。");
+          }
+        } else {
+          (fail || (() => {
+            state.stats.mind -= 1;
+            record("判定は失敗した。");
+          }))(result);
+        }
+        checkCollapse();
+        if (!state.ended && state.time === "昼") advance("夕");
+        else renderGame();
+      });
+    }
+
+    function roll(dc) {
+      const die = Math.floor(Math.random() * 20) + 1;
+      const mod = rankMod[state.assignments.ability] || 0;
+      const job = ["S", "A", "B"].includes(state.assignments.origin) ? 1 : 0;
+      const hungerPenalty = state.stats.food <= 0 ? -2 : 0;
+      const total = die + mod + job + hungerPenalty;
+      let level = "失敗";
+      if (die === 20 || total >= dc + 5) level = "大成功";
+      else if (total >= dc) level = "成功";
+      else if (total >= dc - 2) level = "代償つき成功";
+      else if (die === 1 || total <= dc - 8) level = "大失敗";
+      const line = `判定: 1d20=${die} / 補正=${mod + job + hungerPenalty} / 合計=${total} / 難易度=${dc} / 結果=${level}`;
+      state.log.unshift(line);
+      return { die, mod, total, dc, level };
+    }
+
+    function record(text) {
+      state.log.unshift(`記録: ${text}`);
+    }
+
+    function advance(time) {
+      state.time = time;
+      renderGame();
+    }
+
+    function endDay() {
+      checkCollapse();
+      if (state.ended) {
+        renderGame();
+        return;
+      }
+      state.day += 1;
+      state.time = "朝";
+      if (state.day > 3) {
+        state.ended = "三日生存";
+        saveMeta();
+      } else {
+        state.log.unshift("夜が明ける。記録を保存しました。");
+        saveGame();
+      }
+      renderGame();
+    }
+
+    function consumeFood() {
+      if (state.flags[`food-${state.day}`]) return;
+      state.flags[`food-${state.day}`] = true;
+      if (state.stats.food >= 1) {
+        state.stats.food -= 1;
+        state.log.unshift("食料を1日分消費した。");
+      } else {
+        state.stats.hp -= 1;
+        state.stats.mind -= 1;
+        state.log.unshift("食料が足りない。体力と精神が削れた。");
+      }
+      checkCollapse();
+    }
+
+    function checkCollapse() {
+      if (state.stats.hp <= 0) state.ended = "死亡";
+      else if (state.stats.mind <= 0) state.ended = "精神崩壊";
+      else if (state.stats.food <= 0 && state.stats.hp <= 2 && state.day >= 3) state.ended = "飢餓堕ち";
+      if (state.ended) saveMeta();
+    }
+
+    function renderGame() {
+      $("creation").classList.add("hidden");
+      $("game").classList.remove("hidden");
+      const current = getScene();
+      $("sceneTitle").textContent = current.title;
+      $("sceneText").innerHTML = current.text.map(p => `<p>${escapeHtml(p)}</p>`).join("");
+      const choices = $("choices");
+      choices.innerHTML = "";
+      current.choices.forEach(c => {
+        const btn = document.createElement("button");
+        btn.className = "choice";
+        btn.innerHTML = `${escapeHtml(c.label)}<small>${escapeHtml(c.hint || "")}</small>`;
+        btn.onclick = c.action;
+        choices.appendChild(btn);
+      });
+      renderSidebars();
+    }
+
+    function renderSidebars() {
+      if (!state) {
+        $("characterPanel").innerHTML = "<p class='subtitle'>未作成</p>";
+        $("statsPanel").innerHTML = "";
+        $("npcPanel").innerHTML = "";
+        $("recordPanel").innerHTML = "";
+        $("logPanel").innerHTML = "";
+        return;
+      }
+      $("characterPanel").innerHTML = `
+        <div class="stat"><strong>名前</strong><span>${escapeHtml(state.name)}</span></div>
+        <div class="stat"><strong>性別</strong><span>${escapeHtml(state.gender)}</span></div>
+        <div class="stat"><strong>現在地</strong><span>${escapeHtml(state.location)}</span></div>
+        <div class="stat"><strong>日付</strong><span>${state.day}日目 ${escapeHtml(state.time)}</span></div>
+        <h3>カード</h3>
+        ${slots.map(s => `<div class="stat"><strong>${s.label}</strong><span>${state.assignments[s.key]}: ${escapeHtml(state.details[s.key])}</span></div>`).join("")}
+      `;
+      const stats = [
+        ["体力", state.stats.hp, 5],
+        ["精神", state.stats.mind, 5],
+        ["食料", state.stats.food, 7],
+        ["物資", state.stats.supplies, 5],
+        ["信頼", state.stats.trust, 5],
+        ["疑念", state.stats.suspicion, 5],
+        ["魔物圧", state.stats.beast, 5],
+        ["食料圧", state.stats.hunger, 5],
+        ["認識度", state.stats.recognition, 5]
+      ];
+      $("statsPanel").innerHTML = stats.map(([name, val, max]) => `
+        <div>
+          <div class="stat"><strong>${name}</strong><span>${formatStat(val)}</span></div>
+          <div class="meter ${val <= 1 && ["体力","精神","食料"].includes(name) ? "bad" : ""}"><span style="width:${Math.max(0, Math.min(100, (val / max) * 100))}%"></span></div>
+        </div>
+      `).join("");
+      $("npcPanel").innerHTML = Object.entries(state.npcs).map(([name, data]) => `<li><strong>${name}</strong> 関係:${data.relation}<br><span class="subtitle">${data.note}</span></li>`).join("");
+      $("recordPanel").innerHTML = state.records.slice(-8).map(r => `<li>${escapeHtml(r)}</li>`).join("");
+      $("logPanel").innerHTML = state.log.slice(0, 12).map(l => `<div class="log-entry">${escapeHtml(l)}</div>`).join("");
+    }
+
+    function formatFood(value) {
+      return value === 0.5 ? "半日分" : `${value}日分`;
+    }
+
+    function formatStat(value) {
+      return Number.isInteger(value) ? value : value.toFixed(1);
+    }
+
+    function saveGame() {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+    }
+
+    function loadGame() {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return false;
+      state = JSON.parse(raw);
+      renderGame();
+      return true;
+    }
+
+    function clearSave() {
+      localStorage.removeItem(SAVE_KEY);
+    }
+
+    function saveMeta() {
+      const meta = JSON.parse(localStorage.getItem(META_KEY) || "[]");
+      meta.unshift({
+        at: new Date().toISOString(),
+        name: state.name,
+        ending: state.ended || "三日生存",
+        records: state.records.slice(-5)
+      });
+      localStorage.setItem(META_KEY, JSON.stringify(meta.slice(0, 10)));
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    $("generateBtn").onclick = startGame;
+    $("resetCardsBtn").onclick = () => {
+      selectedCard = null;
+      assignments = {};
+      renderCreation();
+    };
+    $("continueBtn").onclick = () => {
+      if (!loadGame()) alert("保存された記録はありません。");
+    };
+    $("newBtn").onclick = () => {
+      if (localStorage.getItem(SAVE_KEY) && !confirm("既存の記録を上書きしますか。")) return;
+      clearSave();
+      state = null;
+      $("creation").classList.remove("hidden");
+      $("game").classList.add("hidden");
+      renderSidebars();
+    };
+
+    renderCreation();
+    renderSidebars();
+  </script>
+</body>
+</html>
