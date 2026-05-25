@@ -130,6 +130,55 @@
       margin: 0 0 12px;
     }
 
+    .combat-board {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(222, 211, 189, .28);
+    }
+
+    .combat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .combat-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--white);
+      padding: 12px;
+    }
+
+    .combat-card strong {
+      color: var(--iron);
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .tag {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: .82rem;
+      color: var(--iron);
+      background: rgba(255, 250, 240, .78);
+    }
+
+    .detail {
+      color: var(--muted);
+      font-size: .9rem;
+      margin-top: 6px;
+    }
+
     .choices {
       display: grid;
       gap: 10px;
@@ -355,6 +404,10 @@
         grid-template-columns: 1fr;
       }
 
+      .combat-grid {
+        grid-template-columns: 1fr;
+      }
+
       .left,
       .right {
         max-height: none;
@@ -430,6 +483,8 @@
       <ul class="list" id="npcPanel"></ul>
       <h2>記録</h2>
       <ul class="list" id="recordPanel"></ul>
+      <h2>天賦・魔法</h2>
+      <ul class="list" id="abilityPanel"></ul>
       <h2>判定ログ</h2>
       <div class="log" id="logPanel"></div>
     </aside>
@@ -511,6 +566,85 @@
       "セヴァン": { relation: 0, note: "神殿と異常記録" },
       "ガロ": { relation: 0, note: "裏市と食料取引" },
       "シィル": { relation: 0, note: "森と魔物情報" }
+    };
+
+    const talentDetails = {
+      "魔喰いの拒絶": {
+        kind: "伝説級天賦",
+        text: "格上の魔物が放つ魔法を一度だけ無力化する。使用後、認識度が上がる。",
+        combat: "敵の魔法・異能を無効化し、戦闘を有利に終わらせる。"
+      },
+      "異位階放射": {
+        kind: "伝説級天賦",
+        text: "本来扱えない上位階級の魔法を一発だけ放つ。反動で体力か精神を失う。",
+        combat: "大きなダメージを与える。成功しても精神を消耗する。"
+      },
+      "魔力残響視": {
+        kind: "英雄級天賦",
+        text: "魔法、召喚、異界遺物の痕跡を見る。見すぎると恐怖が増える。",
+        combat: "敵の弱点や魔法の前兆を読む。観察判定に強い補正。"
+      },
+      "危機嗅覚": {
+        kind: "希少天賦",
+        text: "危険な選択肢に違和感を覚える。具体的な原因までは分からない。",
+        combat: "逃走や防御判定に補正。大失敗を一度だけ通常失敗にする。"
+      },
+      "鉄胃": {
+        kind: "微光天賦",
+        text: "毒、腐敗食、粗悪な水に強い。",
+        combat: "毒や腐敗系の魔物能力への抵抗に補正。"
+      },
+      "天賦なし": {
+        kind: "なし",
+        text: "特別な天賦は記録されていない。",
+        combat: "戦闘中に特別な天賦行動はない。"
+      }
+    };
+
+    const spellDetails = {
+      "火種": "0位階。小さな火を点ける。獣型や小鬼を怯ませることがある。",
+      "傷塞ぎ": "1位階。浅い傷を止血する。戦闘中は体力を少し戻す。",
+      "獣縛り": "2位階。小型獣や魔物の動きを鈍らせる。強い魔物には破られる。",
+      "霊灯": "2位階。霊的痕跡を照らす。死霊型に有効だが呼び寄せる危険もある。"
+    };
+
+    const monsterDetails = {
+      "灰狼": {
+        threat: "D",
+        type: "獣型 / 群れ",
+        hp: 3,
+        dc: 12,
+        magic: "なし。だが群れの圧で逃走を難しくする。",
+        weakness: "火、罠、落ち着いた後退。",
+        note: "飢えているというより、森の奥から逃げている。"
+      },
+      "墓灯り": {
+        threat: "D",
+        type: "死霊型 / 誘導",
+        hp: 2,
+        dc: 12,
+        magic: "灯誘い。失敗した者を墓地の奥へ歩かせる。",
+        weakness: "祈り、霊灯、名前を呼ばないこと。",
+        note: "敵意よりも、未練に近い反応を示す。"
+      },
+      "小鬼の斥候": {
+        threat: "C",
+        type: "亜人型 / 部族",
+        hp: 4,
+        dc: 15,
+        magic: "粗末な煙玉。視界を奪って逃げる。",
+        weakness: "交渉、食料、退路の封鎖。",
+        note: "倉庫を襲うより、何かを探している。"
+      },
+      "影豹の気配": {
+        threat: "B",
+        type: "魔獣型 / 格上",
+        hp: 6,
+        dc: 18,
+        magic: "影渡り。明かりの境目を移動する。",
+        weakness: "直視しない、火を絶やさない、戦わない。",
+        note: "この段階で倒す相手ではない。逃走と記録が現実的。"
+      }
     };
 
     let selectedCard = null;
@@ -643,6 +777,49 @@
 
     function scene(title, text, choices) {
       return { title, text, choices };
+    }
+
+    function combatScene(monsterName) {
+      const monster = monsterDetails[monsterName];
+      const talentName = state.details.talent;
+      const talent = talentDetails[talentName] || talentDetails["天賦なし"];
+      const html = `
+        <div class="combat-board">
+          <div class="combat-grid">
+            <div class="combat-card">
+              <strong>${escapeHtml(monsterName)}</strong>
+              <div class="detail">脅威度 ${monster.threat} / ${escapeHtml(monster.type)}</div>
+              <div class="tags">
+                <span class="tag">耐久 ${monster.hp}</span>
+                <span class="tag">基準難易度 ${monster.dc}</span>
+              </div>
+              <div class="detail">魔法・能力: ${escapeHtml(monster.magic)}</div>
+              <div class="detail">弱点: ${escapeHtml(monster.weakness)}</div>
+              <div class="detail">記録: ${escapeHtml(monster.note)}</div>
+            </div>
+            <div class="combat-card">
+              <strong>${escapeHtml(talentName)}</strong>
+              <div class="detail">${escapeHtml(talent.kind)}</div>
+              <div class="detail">${escapeHtml(talent.combat)}</div>
+              <h3>使用可能な簡易魔法</h3>
+              <div class="detail"><b>火種:</b> ${spellDetails["火種"]}</div>
+              <div class="detail"><b>傷塞ぎ:</b> ${spellDetails["傷塞ぎ"]}</div>
+              <div class="detail"><b>獣縛り:</b> ${spellDetails["獣縛り"]}</div>
+            </div>
+          </div>
+        </div>
+      `;
+      return scene(`2日目 夜 戦闘記録: ${monsterName}`, [
+        `${monsterName}の気配が、夜の端に現れた。`,
+        "この遭遇は、倒すことだけが目的ではない。観察し、退け、逃げ延び、記録を残すことも成功である。",
+        html
+      ], [
+        combatChoice("観察する", "弱点を確認し、記録を得る。", monster.dc - 3, monsterName, "observe"),
+        combatChoice("武器で対処する", "退ける。失敗時は負傷。", monster.dc, monsterName, "attack"),
+        combatChoice("魔法を使う", "火種や獣縛りで距離を作る。物資を消費。", monster.dc - 1, monsterName, "spell"),
+        combatChoice("天賦を使う", "天賦の詳細効果で状況を変える。", monster.dc - 2, monsterName, "talent"),
+        combatChoice("逃走する", "倒さず離脱する。", monster.dc - 2, monsterName, "flee")
+      ]);
     }
 
     function day1Morning() {
@@ -805,27 +982,7 @@
 
     function day2Night() {
       const monster = state.stats.beast >= 2 ? "灰狼" : state.stats.suspicion >= 2 ? "小鬼の斥候" : "墓灯り";
-      return scene(`2日目 夜 ${monster}`, [
-        `${monster}の気配が、夜の端に現れた。`,
-        "倒すことだけが成功ではない。逃げることも、記録することも、生き残るための手段だった。"
-      ], [
-        rollChoice("対処する", "魔物を退けるか情報を得る。", 15, "ability", () => {
-          state.records.push(`${monster}への対処記録`);
-          state.stats.beast = Math.max(0, state.stats.beast - 1);
-          record(`${monster}への対処に成功した。`);
-          endDay();
-        }, () => {
-          state.stats.hp -= 2; state.stats.mind -= 1;
-          record(`${monster}への対処に失敗した。傷と恐怖が残った。`);
-          endDay();
-        }),
-        choice("隠れてやり過ごす", "被害は抑えるが魔物圧は残る。", () => {
-          state.stats.mind -= 1;
-          state.records.push(`${monster}を目撃した`);
-          record(`${monster}をやり過ごした。`);
-          endDay();
-        })
-      ]);
+      return combatScene(monster);
     }
 
     function day3Morning() {
@@ -908,6 +1065,106 @@
       });
     }
 
+    function combatChoice(label, hint, dc, monsterName, mode) {
+      return choice(label, `${hint} / 難易度${dc}`, () => {
+        const monster = monsterDetails[monsterName];
+        const talentName = state.details.talent;
+
+        if (mode === "talent" && talentName === "天賦なし") {
+          state.stats.mind -= 1;
+          record("呼び出せる天賦はなかった。恐怖だけが残った。");
+          checkCollapse();
+          renderGame();
+          return;
+        }
+
+        if (mode === "talent" && talentName === "魔喰いの拒絶") {
+          state.stats.recognition += 1;
+          state.records.push(`${monsterName}の魔法・能力を拒絶した`);
+          record(`${talentName}が発現した。${monsterName}の能力は一度、空白のように消えた。`);
+          endDay();
+          return;
+        }
+
+        if (mode === "talent" && talentName === "異位階放射") {
+          state.stats.mind -= 2;
+          state.stats.recognition += 1;
+          state.records.push(`${talentName}を使用した`);
+          record("本来届かない位階の光が放たれた。敵は退いたが、精神が大きく削れた。");
+          endDay();
+          return;
+        }
+
+        if (mode === "spell") {
+          if (state.stats.supplies <= 0) {
+            state.stats.mind -= 1;
+            record("触媒や道具が足りない。魔法は形にならなかった。");
+            checkCollapse();
+            renderGame();
+            return;
+          }
+          state.stats.supplies -= 1;
+        }
+
+        let adjustedDc = dc;
+        if (mode === "observe" && talentName === "魔力残響視") adjustedDc -= 4;
+        if (mode === "flee" && talentName === "危機嗅覚") adjustedDc -= 3;
+        if (mode === "spell" && monsterName === "墓灯り") adjustedDc -= 2;
+        if (mode === "attack" && monster.threat === "B") adjustedDc += 3;
+
+        const result = roll(adjustedDc);
+        if (result.level === "大成功" || result.level === "成功" || result.level === "代償つき成功") {
+          resolveCombatSuccess(monsterName, mode, result.level);
+        } else {
+          resolveCombatFailure(monsterName, mode, result.level);
+        }
+        checkCollapse();
+        endDay();
+      });
+    }
+
+    function resolveCombatSuccess(monsterName, mode, level) {
+      const labels = {
+        observe: "観察",
+        attack: "武器での対処",
+        spell: "魔法",
+        talent: "天賦",
+        flee: "逃走"
+      };
+      state.records.push(`${monsterName}: ${labels[mode]}成功`);
+      if (mode === "observe") {
+        state.stats.mind -= level === "代償つき成功" ? 1 : 0;
+        record(`${monsterName}の弱点と能力を記録した。`);
+      } else if (mode === "attack") {
+        state.stats.hp -= level === "代償つき成功" ? 1 : 0;
+        state.stats.beast = Math.max(0, state.stats.beast - 1);
+        record(`${monsterName}を退けた。`);
+      } else if (mode === "spell") {
+        state.stats.beast = Math.max(0, state.stats.beast - 1);
+        record(`魔法で${monsterName}との距離を作った。`);
+      } else if (mode === "talent") {
+        state.stats.recognition += 1;
+        record(`天賦によって${monsterName}の行動を崩した。`);
+      } else {
+        state.stats.mind -= level === "代償つき成功" ? 1 : 0;
+        record(`${monsterName}から離脱した。`);
+      }
+    }
+
+    function resolveCombatFailure(monsterName, mode, level) {
+      state.records.push(`${monsterName}: ${mode}失敗`);
+      if (level === "大失敗") {
+        state.stats.hp -= 2;
+        state.stats.mind -= 2;
+        state.stats.beast += 1;
+        record(`${monsterName}への対処は崩れた。傷と恐怖が残った。`);
+      } else {
+        state.stats.hp -= mode === "flee" ? 0 : 1;
+        state.stats.mind -= 1;
+        record(`${monsterName}への対処は失敗した。`);
+      }
+    }
+
     function roll(dc) {
       const die = Math.floor(Math.random() * 20) + 1;
       const mod = rankMod[state.assignments.ability] || 0;
@@ -977,7 +1234,11 @@
       $("game").classList.remove("hidden");
       const current = getScene();
       $("sceneTitle").textContent = current.title;
-      $("sceneText").innerHTML = current.text.map(p => `<p>${escapeHtml(p)}</p>`).join("");
+      $("sceneText").innerHTML = current.text.map(p => {
+        const text = String(p);
+        if (text.startsWith('<div class="combat-board"')) return text;
+        return `<p>${escapeHtml(text)}</p>`;
+      }).join("");
       const choices = $("choices");
       choices.innerHTML = "";
       current.choices.forEach(c => {
@@ -996,6 +1257,7 @@
         $("statsPanel").innerHTML = "";
         $("npcPanel").innerHTML = "";
         $("recordPanel").innerHTML = "";
+        $("abilityPanel").innerHTML = "";
         $("logPanel").innerHTML = "";
         return;
       }
@@ -1026,6 +1288,13 @@
       `).join("");
       $("npcPanel").innerHTML = Object.entries(state.npcs).map(([name, data]) => `<li><strong>${name}</strong> 関係:${data.relation}<br><span class="subtitle">${data.note}</span></li>`).join("");
       $("recordPanel").innerHTML = state.records.slice(-8).map(r => `<li>${escapeHtml(r)}</li>`).join("");
+      const talent = talentDetails[state.details.talent] || talentDetails["天賦なし"];
+      $("abilityPanel").innerHTML = `
+        <li><strong>${escapeHtml(state.details.talent)}</strong><br><span class="subtitle">${escapeHtml(talent.text)}</span></li>
+        <li><strong>火種</strong><br><span class="subtitle">${escapeHtml(spellDetails["火種"])}</span></li>
+        <li><strong>傷塞ぎ</strong><br><span class="subtitle">${escapeHtml(spellDetails["傷塞ぎ"])}</span></li>
+        <li><strong>獣縛り</strong><br><span class="subtitle">${escapeHtml(spellDetails["獣縛り"])}</span></li>
+      `;
       $("logPanel").innerHTML = state.log.slice(0, 12).map(l => `<div class="log-entry">${escapeHtml(l)}</div>`).join("");
     }
 
