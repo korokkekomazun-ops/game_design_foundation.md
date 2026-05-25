@@ -483,6 +483,8 @@
       <ul class="list" id="npcPanel"></ul>
       <h2>記録</h2>
       <ul class="list" id="recordPanel"></ul>
+      <h2>歴史</h2>
+      <ul class="list" id="historyPanel"></ul>
       <h2>周回</h2>
       <ul class="list" id="metaPanel"></ul>
       <h2>天賦・魔法</h2>
@@ -649,6 +651,45 @@
       }
     };
 
+    const worldEvents = [
+      {
+        key: "birth",
+        year: 1000,
+        day: 0,
+        nation: "個人史",
+        title: "主人公誕生",
+        text: "灰境地方のどこかに、後に記録へ残る現地人が生まれた。",
+        pressure: "まだ世界は、その名を知らない。"
+      },
+      {
+        key: "levy",
+        year: 1010,
+        day: 1,
+        nation: "王都中央",
+        title: "食料徴発令",
+        text: "王都中央が辺境から穀物を集め始め、灰境地方の食料が薄くなる。",
+        pressure: "食料と信頼を巡る争いが起きやすい。"
+      },
+      {
+        key: "black-forest",
+        year: 1010,
+        day: 2,
+        nation: "黒森諸氏族",
+        title: "獣道の変化",
+        text: "黒森の奥から獣と魔物が浅い場所へ移り、村の畑と街道が危うくなる。",
+        pressure: "魔物遭遇と森の噂が増える。"
+      },
+      {
+        key: "temple",
+        year: 1010,
+        day: 3,
+        nation: "白燭教圏",
+        title: "異端記録の照合",
+        text: "白燭神殿が奇妙な天賦、死体、黒い封蝋の記録を集め始める。",
+        pressure: "天賦持ちや異常接触者は見つかりやすくなる。"
+      }
+    ];
+
     const growthLabels = {
       survival: "生存知識",
       monster: "魔物知識",
@@ -756,6 +797,22 @@
         },
         npcs,
         records: ["灰境地方での記録を開始した。"],
+        history: [
+          {
+            year: 1000,
+            nation: "個人史",
+            title: "主人公誕生",
+            text: `${name}が生まれた。世界史には、まだ一行も残っていない。`,
+            impact: "干渉度0"
+          },
+          {
+            year: 1010,
+            nation: "灰境地方",
+            title: "三日間の記録開始",
+            text: "食料、検問、魔物、神殿記録が同じ地方で重なり始めた。",
+            impact: "観測"
+          }
+        ],
         growth: loadGrowth(),
         flags: {},
         log: []
@@ -840,6 +897,7 @@
     }
 
     function day1Morning() {
+      processWorldEvents();
       const origin = state.assignments.origin;
       let text = [
         `${state.location}の朝は薄く冷えていた。`,
@@ -964,6 +1022,7 @@
     }
 
     function day2Morning() {
+      processWorldEvents();
       consumeFood();
       const text = ["2日目の朝。", "昨日の選択は、どこかで別の誰かの選択を変えていた。"];
       if (state.stats.food <= 0) text.push("腹は空のままだ。体力か精神が削れている。");
@@ -985,18 +1044,21 @@
         rollChoice("仲裁する", "信頼を得る可能性。", 12, "ability", () => {
           state.stats.trust += 1; state.stats.mind -= 1;
           record(`${event}を一時的に鎮めた。`);
+          addHistory("灰境地方", `${event}に介入し、現場の被害を一時的に抑えた。`, "干渉度2");
           advance("夜");
         }),
         rollChoice("証拠を探す", "情報を得る。", 12, "ability", () => {
           state.records.push(`${event}の記録`);
           state.stats.suspicion += 1;
           record(`${event}について記録を得た。`);
+          addHistory("地方記録", `${event}の証拠を残した。後の誰かが参照できる可能性がある。`, "干渉度1");
           advance("夜");
         }),
         choice("関わらず食料を探す", "食料+1。信頼は得ない。", () => {
           state.stats.food += 1;
           state.stats.hunger += 1;
           record("対立から離れ、食料だけを探した。");
+          addHistory("個人史", `${event}には関わらず、食料確保を優先した。`, "干渉度0");
           advance("夜");
         })
       ]);
@@ -1008,6 +1070,7 @@
     }
 
     function day3Morning() {
+      processWorldEvents();
       consumeFood();
       const text = ["3日目の朝。", "灰境地方は、まだ壊れてはいない。だが、昨日までと同じ形でもない。"];
       if (state.stats.trust >= 2) text.push("誰かがあなたを助ける準備をしている。");
@@ -1036,9 +1099,11 @@
       return choice(label, ok ? ending : "条件不足なら危険な失敗になる。", () => {
         if (ok) {
           state.ended = ending;
+          addHistory("灰境地方", `${state.name}は三日後の行き先として「${ending}」を選んだ。`, "干渉度3");
         } else {
           state.ended = "逃亡者";
           state.stats.hp -= 1;
+          addHistory("個人史", `${state.name}は条件の足りない道を選び、逃亡者として記録された。`, "干渉度1");
         }
         renderGame();
       });
@@ -1216,6 +1281,41 @@
       state.log.unshift(`記録: ${text}`);
     }
 
+    function processWorldEvents() {
+      if (!state.history) state.history = [];
+      worldEvents
+        .filter(event => event.day === state.day)
+        .forEach(event => {
+          const flag = `world-${event.key}`;
+          if (state.flags[flag]) return;
+          state.flags[flag] = true;
+          addHistory(event.nation, `${event.title}: ${event.text}`, "干渉度0");
+          state.log.unshift(`歴史: ${event.nation} - ${event.pressure}`);
+          applyWorldPressure(event.key);
+        });
+    }
+
+    function applyWorldPressure(key) {
+      if (key === "levy") state.stats.hunger += 1;
+      if (key === "black-forest") state.stats.beast += 1;
+      if (key === "temple" && ["S", "A", "B"].includes(state.assignments.talent)) {
+        state.stats.recognition += 1;
+        state.stats.suspicion += 1;
+      }
+    }
+
+    function addHistory(nation, text, impact) {
+      if (!state.history) state.history = [];
+      state.history.unshift({
+        year: 1010,
+        nation,
+        title: `${state.day}日目 ${state.time}`,
+        text,
+        impact
+      });
+      state.history = state.history.slice(0, 12);
+    }
+
     function advance(time) {
       state.time = time;
       renderGame();
@@ -1371,6 +1471,7 @@
         $("statsPanel").innerHTML = "";
         $("npcPanel").innerHTML = "";
         $("recordPanel").innerHTML = "";
+        $("historyPanel").innerHTML = "";
         $("metaPanel").innerHTML = renderMetaList();
         $("abilityPanel").innerHTML = "";
         $("logPanel").innerHTML = "";
@@ -1406,6 +1507,11 @@
         return `<li><strong>${name}</strong> 関係:${data.relation} / 危機:${data.crisis || 0}<br><span class="subtitle">${data.note}</span>${history}</li>`;
       }).join("");
       $("recordPanel").innerHTML = state.records.slice(-8).map(r => `<li>${escapeHtml(r)}</li>`).join("");
+      $("historyPanel").innerHTML = (state.history || []).slice(0, 6).map(h => `
+        <li><strong>${escapeHtml(h.year)}年 ${escapeHtml(h.nation)}</strong><br>
+        <span class="subtitle">${escapeHtml(h.title)} / ${escapeHtml(h.impact || "観測")}</span><br>
+        ${escapeHtml(h.text)}</li>
+      `).join("");
       $("metaPanel").innerHTML = renderMetaList();
       const talent = talentDetails[state.details.talent] || talentDetails["天賦なし"];
       $("abilityPanel").innerHTML = `
