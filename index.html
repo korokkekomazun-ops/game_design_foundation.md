@@ -483,6 +483,8 @@
       <ul class="list" id="npcPanel"></ul>
       <h2>記録</h2>
       <ul class="list" id="recordPanel"></ul>
+      <h2>周回</h2>
+      <ul class="list" id="metaPanel"></ul>
       <h2>天賦・魔法</h2>
       <ul class="list" id="abilityPanel"></ul>
       <h2>判定ログ</h2>
@@ -561,11 +563,11 @@
     };
 
     const initialNpc = {
-      "ミラ": { relation: 0, note: "村の噂と食料葛藤" },
-      "ロアン": { relation: 0, note: "守備隊と検問" },
-      "セヴァン": { relation: 0, note: "神殿と異常記録" },
-      "ガロ": { relation: 0, note: "裏市と食料取引" },
-      "シィル": { relation: 0, note: "森と魔物情報" }
+      "ミラ": { relation: 0, crisis: 1, note: "村の噂と食料葛藤", history: [] },
+      "ロアン": { relation: 0, crisis: 0, note: "守備隊と検問", history: [] },
+      "セヴァン": { relation: 0, crisis: 0, note: "神殿と異常記録", history: [] },
+      "ガロ": { relation: 0, crisis: 1, note: "裏市と食料取引", history: [] },
+      "シィル": { relation: 0, crisis: 0, note: "森と魔物情報", history: [] }
     };
 
     const talentDetails = {
@@ -647,6 +649,15 @@
       }
     };
 
+    const growthLabels = {
+      survival: "生存知識",
+      monster: "魔物知識",
+      negotiation: "交渉勘",
+      stealth: "隠密慣れ",
+      faith: "信仰理解",
+      anomaly: "異常耐性"
+    };
+
     let selectedCard = null;
     let assignments = {};
     let state = null;
@@ -717,6 +728,11 @@
       if (connectionRank === "B") npcs["ロアン"].relation = 2;
       if (connectionRank === "S") npcs["セヴァン"].relation = 1;
       if (connectionRank === "E") npcs["ガロ"].relation = -1;
+      Object.entries(npcs).forEach(([name, npc]) => {
+        npc.history.push(`開始時: ${npc.note}`);
+        if (npc.relation > 0) npc.history.push(`開始時: ${name}との縁がある。`);
+        if (npc.relation < 0) npc.history.push(`開始時: ${name}との間に負債か悪縁がある。`);
+      });
 
       return {
         phase: "game",
@@ -740,6 +756,7 @@
         },
         npcs,
         records: ["灰境地方での記録を開始した。"],
+        growth: loadGrowth(),
         flags: {},
         log: []
       };
@@ -892,6 +909,8 @@
       ], [
         choice(`${name}を助ける`, "関係が上がる。食料か物資を使う。", () => {
           state.npcs[name].relation += 1;
+          state.npcs[name].crisis = Math.max(0, state.npcs[name].crisis - 1);
+          addNpcHistory(name, `${state.day}日目夕: 助けを受けた。`);
           if (state.stats.food > 0) state.stats.food -= 0.5;
           else state.stats.supplies = Math.max(0, state.stats.supplies - 1);
           record(`${name}への関係が深まった。`);
@@ -899,6 +918,8 @@
         }),
         choice("断る", "食料は守る。関係は冷える。", () => {
           state.npcs[name].relation -= 1;
+          state.npcs[name].crisis += 1;
+          addNpcHistory(name, `${state.day}日目夕: 助けを断られた。`);
           record(`${name}との距離が少し開いた。`);
           advance("夜");
         }),
@@ -906,6 +927,7 @@
           state.npcs[name].relation += 0;
           state.stats.trust += 1;
           state.records.push(`${name}との取引条件`);
+          addNpcHistory(name, `${state.day}日目夕: 条件つきの取引を結んだ。`);
           record(`${name}とは好意ではなく条件でつながった。`);
           advance("夜");
         })
@@ -1170,15 +1192,24 @@
       const mod = rankMod[state.assignments.ability] || 0;
       const job = ["S", "A", "B"].includes(state.assignments.origin) ? 1 : 0;
       const hungerPenalty = state.stats.food <= 0 ? -2 : 0;
-      const total = die + mod + job + hungerPenalty;
+      const growth = growthBonusForDc(dc);
+      const total = die + mod + job + hungerPenalty + growth;
       let level = "失敗";
       if (die === 20 || total >= dc + 5) level = "大成功";
       else if (total >= dc) level = "成功";
       else if (total >= dc - 2) level = "代償つき成功";
       else if (die === 1 || total <= dc - 8) level = "大失敗";
-      const line = `判定: 1d20=${die} / 補正=${mod + job + hungerPenalty} / 合計=${total} / 難易度=${dc} / 結果=${level}`;
+      const line = `判定: 1d20=${die} / 補正=${mod + job + hungerPenalty + growth} / 合計=${total} / 難易度=${dc} / 結果=${level}`;
       state.log.unshift(line);
       return { die, mod, total, dc, level };
+    }
+
+    function growthBonusForDc(dc) {
+      const growth = state.growth || {};
+      if (state.time === "夜") return growth.stealth || 0;
+      if (dc >= 15 && state.stats.beast > 0) return growth.monster || 0;
+      if (state.stats.food <= 0) return growth.survival || 0;
+      return 0;
     }
 
     function record(text) {
@@ -1196,6 +1227,7 @@
         renderGame();
         return;
       }
+      processNpcActions();
       state.day += 1;
       state.time = "朝";
       if (state.day > 3) {
@@ -1220,6 +1252,88 @@
         state.log.unshift("食料が足りない。体力と精神が削れた。");
       }
       checkCollapse();
+    }
+
+    function processNpcActions() {
+      if (state.flags[`npc-actions-${state.day}`]) return;
+      state.flags[`npc-actions-${state.day}`] = true;
+      Object.entries(state.npcs).forEach(([name, npc]) => {
+        let action = null;
+        if (npc.relation >= 2 && npc.crisis <= 1) {
+          action = npcSupportAction(name);
+        } else if (npc.crisis >= 3) {
+          action = npcCrisisAction(name);
+        } else if (state.stats.hunger >= 2 && (name === "ミラ" || name === "ガロ")) {
+          action = npcFoodAction(name);
+        } else if (state.stats.beast >= 2 && name === "シィル") {
+          action = "森の境界を見回り、魔物の足跡を記録した。";
+          state.records.push("黒森の獣道に新しい足跡がある。");
+        } else if (state.stats.suspicion >= 2 && name === "ロアン") {
+          action = "検問記録にあなたの名を見つけ、迷っている。";
+        } else if (state.stats.recognition >= 1 && name === "セヴァン") {
+          action = "黒い封蝋に似た文様を古い記録から探した。";
+          state.records.push("神殿記録に黒い封蝋に似た文様がある。");
+        }
+        if (action) {
+          addNpcHistory(name, `${state.day}日目夜: ${action}`);
+          state.log.unshift(`NPC: ${name} - ${action}`);
+        }
+      });
+    }
+
+    function npcSupportAction(name) {
+      if (name === "ミラ") {
+        state.stats.food += 0.5;
+        return "半日分の食料を密かに分けた。";
+      }
+      if (name === "ロアン") {
+        state.stats.suspicion = Math.max(0, state.stats.suspicion - 1);
+        return "検問であなたの名を見逃した。";
+      }
+      if (name === "セヴァン") {
+        state.records.push("神殿の遺体記録の写し");
+        return "神殿記録の写しを残した。";
+      }
+      if (name === "ガロ") {
+        state.records.push("裏市へ入る合言葉");
+        return "裏市へ入る合言葉を教えた。";
+      }
+      if (name === "シィル") {
+        state.stats.beast = Math.max(0, state.stats.beast - 1);
+        return "森へ入らない安全な道を示した。";
+      }
+      return "小さな助けを残した。";
+    }
+
+    function npcCrisisAction(name) {
+      const npc = state.npcs[name];
+      npc.relation -= 1;
+      state.stats.suspicion += 1;
+      if (name === "ミラ") return "家族のため、誰かにあなたのことを話した。";
+      if (name === "ロアン") return "命令を優先し、あなたを検問対象に入れた。";
+      if (name === "セヴァン") return "異端審査から逃れるため、記録を上へ回した。";
+      if (name === "ガロ") return "借りを帳簿に書き足した。";
+      if (name === "シィル") return "都市人を森から遠ざける警告を広めた。";
+      return "危機から逃れるため、距離を取った。";
+    }
+
+    function npcFoodAction(name) {
+      if (name === "ミラ") {
+        state.npcs[name].crisis += 1;
+        return "家族の食料を探して井戸端の噂を集めた。";
+      }
+      if (name === "ガロ") {
+        state.records.push("食料袋の裏取引");
+        return "食料袋の値を吊り上げた。";
+      }
+      return "食料を探した。";
+    }
+
+    function addNpcHistory(name, text) {
+      const npc = state.npcs[name];
+      if (!npc.history) npc.history = [];
+      npc.history.unshift(text);
+      npc.history = npc.history.slice(0, 5);
     }
 
     function checkCollapse() {
@@ -1257,6 +1371,7 @@
         $("statsPanel").innerHTML = "";
         $("npcPanel").innerHTML = "";
         $("recordPanel").innerHTML = "";
+        $("metaPanel").innerHTML = renderMetaList();
         $("abilityPanel").innerHTML = "";
         $("logPanel").innerHTML = "";
         return;
@@ -1286,8 +1401,12 @@
           <div class="meter ${val <= 1 && ["体力","精神","食料"].includes(name) ? "bad" : ""}"><span style="width:${Math.max(0, Math.min(100, (val / max) * 100))}%"></span></div>
         </div>
       `).join("");
-      $("npcPanel").innerHTML = Object.entries(state.npcs).map(([name, data]) => `<li><strong>${name}</strong> 関係:${data.relation}<br><span class="subtitle">${data.note}</span></li>`).join("");
+      $("npcPanel").innerHTML = Object.entries(state.npcs).map(([name, data]) => {
+        const history = (data.history || []).slice(0, 2).map(h => `<br><span class="subtitle">- ${escapeHtml(h)}</span>`).join("");
+        return `<li><strong>${name}</strong> 関係:${data.relation} / 危機:${data.crisis || 0}<br><span class="subtitle">${data.note}</span>${history}</li>`;
+      }).join("");
       $("recordPanel").innerHTML = state.records.slice(-8).map(r => `<li>${escapeHtml(r)}</li>`).join("");
+      $("metaPanel").innerHTML = renderMetaList();
       const talent = talentDetails[state.details.talent] || talentDetails["天賦なし"];
       $("abilityPanel").innerHTML = `
         <li><strong>${escapeHtml(state.details.talent)}</strong><br><span class="subtitle">${escapeHtml(talent.text)}</span></li>
@@ -1323,14 +1442,65 @@
     }
 
     function saveMeta() {
-      const meta = JSON.parse(localStorage.getItem(META_KEY) || "[]");
-      meta.unshift({
+      const meta = readMeta();
+      const reward = calculateRunReward();
+      meta.runs.unshift({
         at: new Date().toISOString(),
         name: state.name,
         ending: state.ended || "三日生存",
+        day: state.day,
+        reward,
         records: state.records.slice(-5)
       });
-      localStorage.setItem(META_KEY, JSON.stringify(meta.slice(0, 10)));
+      Object.entries(reward.growth).forEach(([key, value]) => {
+        meta.growth[key] = Math.min(3, (meta.growth[key] || 0) + value);
+      });
+      meta.inheritance += reward.points;
+      meta.runs = meta.runs.slice(0, 10);
+      localStorage.setItem(META_KEY, JSON.stringify(meta));
+    }
+
+    function readMeta() {
+      const raw = localStorage.getItem(META_KEY);
+      if (!raw) return { inheritance: 0, growth: {}, runs: [] };
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return { inheritance: 0, growth: {}, runs: parsed };
+      return {
+        inheritance: parsed.inheritance || 0,
+        growth: parsed.growth || {},
+        runs: parsed.runs || []
+      };
+    }
+
+    function loadGrowth() {
+      return { ...readMeta().growth };
+    }
+
+    function calculateRunReward() {
+      const ending = state.ended || "三日生存";
+      const points = Math.max(1, Math.min(3, state.day)) + (ending === "三日生存" ? 1 : 0);
+      const growth = {};
+      if (ending.includes("飢餓")) growth.survival = 1;
+      else if (ending.includes("死亡") && state.stats.beast > 0) growth.monster = 1;
+      else if (ending.includes("精神")) growth.anomaly = 1;
+      else if (state.records.some(r => r.includes("灰狼") || r.includes("墓灯り") || r.includes("小鬼"))) growth.monster = 1;
+      else if (state.records.some(r => r.includes("倉庫") || r.includes("取引"))) growth.stealth = 1;
+      else growth.survival = 1;
+      if (state.records.some(r => r.includes("神殿") || r.includes("影"))) growth.faith = Math.max(growth.faith || 0, 1);
+      if (state.stats.trust >= 2) growth.negotiation = Math.max(growth.negotiation || 0, 1);
+      return { points, growth };
+    }
+
+    function renderMetaList() {
+      const meta = readMeta();
+      const growthLines = Object.entries(growthLabels).map(([key, label]) => {
+        const value = meta.growth[key] || 0;
+        return `${label}: +${value}`;
+      });
+      const last = meta.runs[0];
+      const lastLine = last ? `<br><span class="subtitle">前回: ${escapeHtml(last.name)} / ${escapeHtml(last.ending)}</span>` : "";
+      return `<li><strong>継承点</strong> ${meta.inheritance}${lastLine}</li>` +
+        growthLines.map(line => `<li>${escapeHtml(line)}</li>`).join("");
     }
 
     function escapeHtml(text) {
